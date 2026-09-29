@@ -1,0 +1,6 @@
+{
+  "name": "Strata — Organization Workspace & Chat",
+  "description": "Real-time organization communication workspace with account onboarding, multi-org invite codes, department channels, direct messaging, and member directory.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

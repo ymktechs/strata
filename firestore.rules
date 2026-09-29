@@ -1,0 +1,596 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default deny all reads and writes
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // Phase 3: Hardened Global Primitives
+    // =========================================================================
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isOrgMember(orgId) {
+      return isSignedIn() && exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    // =========================================================================
+    // Pillar 2: Validation Blueprints (Verbatim from firebase-blueprint.json)
+    // =========================================================================
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll([
+        'uid', 'displayName', 'jobTitle', 'department', 'statusText',
+        'presence', 'avatarColor', 'activeOrgId', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid', 'displayName', 'jobTitle', 'department', 'statusText',
+        'presence', 'avatarColor', 'activeOrgId', 'createdAt', 'updatedAt'
+      ]) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.uid == request.auth.uid &&
+      data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+      data.jobTitle is string && data.jobTitle.size() >= 1 && data.jobTitle.size() <= 80 &&
+      data.department is string && data.department.size() >= 1 && data.department.size() <= 60 &&
+      data.statusText is string && data.statusText.size() >= 0 && data.statusText.size() <= 120 &&
+      data.presence is string && data.presence in ['online', 'away', 'busy', 'offline'] &&
+      data.avatarColor is string && data.avatarColor in ['slate', 'indigo', 'emerald', 'amber', 'rose', 'cyan'] &&
+      data.activeOrgId is string && data.activeOrgId.size() >= 1 && data.activeOrgId.size() <= 128 && data.activeOrgId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivate(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt']) &&
+      data.keys().hasOnly(['uid', 'email', 'createdAt', 'updatedAt']) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.uid == request.auth.uid &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidOrganization(data) {
+      return data.keys().hasAll([
+        'orgId', 'name', 'slug', 'description', 'industry', 'inviteCode',
+        'ownerId', 'memberCount', 'channelCount', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'orgId', 'name', 'slug', 'description', 'industry', 'inviteCode',
+        'ownerId', 'memberCount', 'channelCount', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.orgId is string && data.orgId.size() >= 3 && data.orgId.size() <= 128 && data.orgId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+      data.slug is string && data.slug.size() >= 2 && data.slug.size() <= 60 && data.slug.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.description is string && data.description.size() >= 1 && data.description.size() <= 240 &&
+      data.industry is string && data.industry.size() >= 1 && data.industry.size() <= 60 &&
+      data.inviteCode is string && data.inviteCode.size() >= 4 && data.inviteCode.size() <= 32 && data.inviteCode.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.memberCount is int && data.memberCount >= 0 && data.memberCount <= 10000 &&
+      data.channelCount is int && data.channelCount >= 0 && data.channelCount <= 500 &&
+      data.status is string && data.status in ['active', 'archived'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidOrgInvite(data) {
+      return data.keys().hasAll([
+        'inviteCode', 'orgId', 'orgName', 'orgSlug', 'ownerId', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'inviteCode', 'orgId', 'orgName', 'orgSlug', 'ownerId', 'createdAt', 'updatedAt'
+      ]) &&
+      data.inviteCode is string && data.inviteCode.size() >= 4 && data.inviteCode.size() <= 32 && data.inviteCode.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.orgId is string && data.orgId.size() >= 3 && data.orgId.size() <= 128 && data.orgId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.orgName is string && data.orgName.size() >= 2 && data.orgName.size() <= 80 &&
+      data.orgSlug is string && data.orgSlug.size() >= 2 && data.orgSlug.size() <= 60 && data.orgSlug.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.ownerId == request.auth.uid &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidUserMembership(data) {
+      return data.keys().hasAll([
+        'membershipId', 'userId', 'orgId', 'orgName', 'orgSlug',
+        'inviteCode', 'role', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'membershipId', 'userId', 'orgId', 'orgName', 'orgSlug',
+        'inviteCode', 'role', 'createdAt', 'updatedAt'
+      ]) &&
+      data.membershipId is string && data.membershipId.size() >= 3 && data.membershipId.size() <= 128 && data.membershipId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.userId == request.auth.uid &&
+      data.orgId is string && data.orgId.size() >= 3 && data.orgId.size() <= 128 && data.orgId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.orgName is string && data.orgName.size() >= 2 && data.orgName.size() <= 80 &&
+      data.orgSlug is string && data.orgSlug.size() >= 2 && data.orgSlug.size() <= 60 && data.orgSlug.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.inviteCode is string && data.inviteCode.size() >= 4 && data.inviteCode.size() <= 32 && data.inviteCode.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.role is string && data.role in ['owner', 'admin', 'member'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidOrgMember(data) {
+      return data.keys().hasAll([
+        'userId', 'orgId', 'slotId', 'displayName', 'jobTitle', 'department',
+        'statusText', 'presence', 'avatarColor', 'role', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId', 'orgId', 'slotId', 'displayName', 'jobTitle', 'department',
+        'statusText', 'presence', 'avatarColor', 'role', 'createdAt', 'updatedAt'
+      ]) &&
+      data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.orgId is string && data.orgId.size() >= 3 && data.orgId.size() <= 128 && data.orgId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.slotId is string && data.slotId.size() >= 3 && data.slotId.size() <= 32 && data.slotId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+      data.jobTitle is string && data.jobTitle.size() >= 1 && data.jobTitle.size() <= 80 &&
+      data.department is string && data.department.size() >= 1 && data.department.size() <= 60 &&
+      data.statusText is string && data.statusText.size() >= 0 && data.statusText.size() <= 120 &&
+      data.presence is string && data.presence in ['online', 'away', 'busy', 'offline'] &&
+      data.avatarColor is string && data.avatarColor in ['slate', 'indigo', 'emerald', 'amber', 'rose', 'cyan'] &&
+      data.role is string && data.role in ['owner', 'admin', 'member'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidOrgMemberDirectoryEntry(data) {
+      return data.keys().hasAll(['slotId', 'index', 'userId', 'orgId', 'createdAt', 'updatedAt']) &&
+      data.keys().hasOnly(['slotId', 'index', 'userId', 'orgId', 'createdAt', 'updatedAt']) &&
+      data.slotId is string && data.slotId.size() >= 3 && data.slotId.size() <= 32 && data.slotId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.index is int && data.index >= 1 && data.index <= 10000 &&
+      data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.userId == request.auth.uid &&
+      data.orgId is string && data.orgId.size() >= 3 && data.orgId.size() <= 128 && data.orgId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidChannel(data) {
+      return data.keys().hasAll([
+        'channelId', 'index', 'orgId', 'name', 'topic', 'category', 'kind',
+        'dmParticipantA', 'dmParticipantB', 'createdBy', 'messageCount',
+        'lastMessagePreview', 'lastMessageAuthorName', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'channelId', 'index', 'orgId', 'name', 'topic', 'category', 'kind',
+        'dmParticipantA', 'dmParticipantB', 'createdBy', 'messageCount',
+        'lastMessagePreview', 'lastMessageAuthorName', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.channelId is string && data.channelId.size() >= 3 && data.channelId.size() <= 64 && data.channelId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.index is int && data.index >= 1 && data.index <= 500 &&
+      data.orgId is string && data.orgId.size() >= 3 && data.orgId.size() <= 128 && data.orgId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.name is string && data.name.size() >= 1 && data.name.size() <= 60 &&
+      data.topic is string && data.topic.size() >= 0 && data.topic.size() <= 160 &&
+      data.category is string && data.category in ['announcements', 'general', 'engineering', 'product', 'operations', 'direct'] &&
+      data.kind is string && data.kind in ['public', 'announcement', 'dm'] &&
+      data.dmParticipantA is string && data.dmParticipantA.size() >= 1 && data.dmParticipantA.size() <= 128 && data.dmParticipantA.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.dmParticipantB is string && data.dmParticipantB.size() >= 1 && data.dmParticipantB.size() <= 128 && data.dmParticipantB.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 && data.createdBy.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.messageCount is int && data.messageCount >= 0 && data.messageCount <= 100000 &&
+      data.lastMessagePreview is string && data.lastMessagePreview.size() >= 0 && data.lastMessagePreview.size() <= 160 &&
+      data.lastMessageAuthorName is string && data.lastMessageAuthorName.size() >= 0 && data.lastMessageAuthorName.size() <= 80 &&
+      data.status is string && data.status in ['active', 'archived'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll([
+        'messageId', 'index', 'orgId', 'channelId', 'authorId', 'authorName',
+        'authorRole', 'authorAvatarColor', 'content', 'replyToMessageId',
+        'replyToAuthorName', 'replyToPreview', 'isPinned', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'messageId', 'index', 'orgId', 'channelId', 'authorId', 'authorName',
+        'authorRole', 'authorAvatarColor', 'content', 'replyToMessageId',
+        'replyToAuthorName', 'replyToPreview', 'isPinned', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.messageId is string && data.messageId.size() >= 3 && data.messageId.size() <= 64 && data.messageId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.index is int && data.index >= 1 && data.index <= 100000 &&
+      data.orgId is string && data.orgId.size() >= 3 && data.orgId.size() <= 128 && data.orgId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.channelId is string && data.channelId.size() >= 3 && data.channelId.size() <= 64 && data.channelId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 && data.authorId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80 &&
+      data.authorRole is string && data.authorRole.size() >= 1 && data.authorRole.size() <= 80 &&
+      data.authorAvatarColor is string && data.authorAvatarColor in ['slate', 'indigo', 'emerald', 'amber', 'rose', 'cyan'] &&
+      data.content is string && data.content.size() >= 1 && data.content.size() <= 2000 &&
+      data.replyToMessageId is string && data.replyToMessageId.size() >= 1 && data.replyToMessageId.size() <= 64 && data.replyToMessageId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.replyToAuthorName is string && data.replyToAuthorName.size() >= 0 && data.replyToAuthorName.size() <= 80 &&
+      data.replyToPreview is string && data.replyToPreview.size() >= 0 && data.replyToPreview.size() <= 140 &&
+      data.isPinned is bool &&
+      data.status is string && data.status in ['sent', 'edited', 'deleted'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // =========================================================================
+    // Phase 4: Hardened Collection Rules (Strict Denial-of-Wallet Ordering)
+    // =========================================================================
+
+    // 1. Public Workspace Profile (Owner-Isolated, No PII)
+    match /users/{userId} {
+      allow get: if isVerifiedUser() && isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isOwner(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == userId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming()) &&
+        isOwner(userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'jobTitle', 'department', 'statusText',
+          'presence', 'avatarColor', 'activeOrgId', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // 2. Private PII Vault (Pillar 6: Split-Collection PII Isolation)
+    match /user_private/{userId} {
+      allow get: if isVerifiedUser() && isValidId(userId) && isOwner(userId);
+      allow list: if false;
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isOwner(userId) &&
+        isValidUserPrivate(incoming()) &&
+        incoming().uid == userId &&
+        incoming().email == request.auth.token.email &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidUserPrivate(incoming()) &&
+        isOwner(userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().email == request.auth.token.email &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // 3. Organization Invite Lookup (Deterministic Key by inviteCode)
+    match /org_invites/{inviteCode} {
+      allow get: if isVerifiedUser() && isValidId(inviteCode);
+      allow list: if false;
+      allow create: if isVerifiedUser() &&
+        isValidId(inviteCode) &&
+        isValidOrgInvite(incoming()) &&
+        incoming().inviteCode == inviteCode &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        existsAfter(/databases/$(database)/documents/organizations/$(incoming().orgId));
+      allow update, delete: if false;
+    }
+
+    // 4. User-Scoped Organization Memberships (Pillar 8: Query Enforcer)
+    match /user_memberships/{membershipId} {
+      allow get: if isVerifiedUser() &&
+        isValidId(membershipId) &&
+        existing().userId == request.auth.uid;
+      allow list: if isVerifiedUser() &&
+        existing().userId == request.auth.uid;
+      allow create: if isVerifiedUser() &&
+        isValidId(membershipId) &&
+        isValidUserMembership(incoming()) &&
+        incoming().membershipId == membershipId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/organizations/$(incoming().orgId)) &&
+        existsAfter(/databases/$(database)/documents/organizations/$(incoming().orgId)/members/$(request.auth.uid)) &&
+        (
+          (incoming().role == 'owner' && get(/databases/$(database)/documents/organizations/$(incoming().orgId)).data.ownerId == request.auth.uid) ||
+          (incoming().role == 'member' && get(/databases/$(database)/documents/organizations/$(incoming().orgId)).data.ownerId != request.auth.uid)
+        );
+      allow update, delete: if false;
+    }
+
+    // 5. Organizations (Master Parent Document)
+    match /organizations/{orgId} {
+      allow get: if isVerifiedUser() &&
+        isValidId(orgId) &&
+        (
+          existing().ownerId == request.auth.uid ||
+          isOrgMember(orgId) ||
+          exists(/databases/$(database)/documents/org_invites/$(existing().inviteCode))
+        );
+      allow list: if false;
+      allow create: if isVerifiedUser() &&
+        isValidId(orgId) &&
+        isValidOrganization(incoming()) &&
+        incoming().orgId == orgId &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().memberCount == 0 &&
+        incoming().channelCount == 0 &&
+        incoming().status == 'active' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        existsAfter(/databases/$(database)/documents/org_invites/$(incoming().inviteCode));
+      allow update: if isVerifiedUser() &&
+        isValidId(orgId) &&
+        isValidOrganization(incoming()) &&
+        existing().status != 'archived' &&
+        incoming().orgId == existing().orgId &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().slug == existing().slug &&
+        incoming().inviteCode == existing().inviteCode &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          // Action 1: Owner updates workspace metadata or archives workspace
+          (
+            existing().ownerId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'industry', 'status', 'updatedAt']) &&
+            isOrgMember(orgId)
+          ) ||
+          // Action 2: Atomic memberCount increment when a user joins the organization
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['memberCount', 'updatedAt']) &&
+            incoming().memberCount == existing().memberCount + 1 &&
+            existsAfter(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)) &&
+            existsAfter(/databases/$(database)/documents/organizations/$(orgId)/member_directory/$( 'mem_' + string(incoming().memberCount) ))
+          ) ||
+          // Action 3: Atomic channelCount increment when a member creates a channel
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['channelCount', 'updatedAt']) &&
+            incoming().channelCount == existing().channelCount + 1 &&
+            isOrgMember(orgId) &&
+            existsAfter(/databases/$(database)/documents/organizations/$(orgId)/channels/$( 'ch_' + string(incoming().channelCount) ))
+          )
+        );
+      allow delete: if false;
+
+      // 6. Organization Members (Master Gate Authority & Live Member Profile)
+      match /members/{userId} {
+        allow get: if isVerifiedUser() &&
+          isValidId(orgId) &&
+          isValidId(userId) &&
+          get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+          (isOwner(userId) || isOrgMember(orgId));
+        allow list: if false;
+        allow create: if isVerifiedUser() &&
+          isValidId(orgId) &&
+          isValidId(userId) &&
+          isOwner(userId) &&
+          isValidOrgMember(incoming()) &&
+          incoming().userId == userId &&
+          incoming().orgId == orgId &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+          existsAfter(/databases/$(database)/documents/organizations/$(orgId)/member_directory/$(incoming().slotId)) &&
+          (
+            (incoming().role == 'owner' && get(/databases/$(database)/documents/organizations/$(orgId)).data.ownerId == request.auth.uid) ||
+            (incoming().role == 'member' && get(/databases/$(database)/documents/organizations/$(orgId)).data.ownerId != request.auth.uid)
+          );
+        allow update: if isVerifiedUser() &&
+          isValidId(orgId) &&
+          isValidId(userId) &&
+          isValidOrgMember(incoming()) &&
+          incoming().userId == existing().userId &&
+          incoming().orgId == existing().orgId &&
+          incoming().slotId == existing().slotId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            // Action 1: Member updates their own profile and presence status
+            (
+              isOwner(userId) &&
+              incoming().role == existing().role &&
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'displayName', 'jobTitle', 'department', 'statusText', 'presence', 'avatarColor', 'updatedAt'
+              ]) &&
+              get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+              isOrgMember(orgId)
+            ) ||
+            // Action 2: Organization Owner updates a member's role
+            (
+              existing().role != 'owner' &&
+              incoming().role in ['admin', 'member'] &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['role', 'updatedAt']) &&
+              get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+              get(/databases/$(database)/documents/organizations/$(orgId)).data.ownerId == request.auth.uid &&
+              isOrgMember(orgId)
+            )
+          );
+        allow delete: if false;
+      }
+
+      // 7. Organization Member Directory Slots (Sequential mem_1 .. mem_N)
+      match /member_directory/{slotId} {
+        allow get: if isVerifiedUser() &&
+          isValidId(orgId) &&
+          isValidId(slotId) &&
+          get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+          isOrgMember(orgId);
+        allow list: if false;
+        allow create: if isVerifiedUser() &&
+          isValidId(orgId) &&
+          isValidId(slotId) &&
+          isValidOrgMemberDirectoryEntry(incoming()) &&
+          incoming().slotId == slotId &&
+          incoming().orgId == orgId &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+          existsAfter(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid)) &&
+          getAfter(/databases/$(database)/documents/organizations/$(orgId)).data.memberCount == incoming().index;
+        allow update, delete: if false;
+      }
+
+      // 8. Organization Channels & Direct Message Threads (Sequential ch_1 .. ch_N)
+      match /channels/{channelId} {
+        allow get: if isVerifiedUser() &&
+          isValidId(orgId) &&
+          isValidId(channelId) &&
+          get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+          isOrgMember(orgId);
+        allow list: if false;
+        allow create: if isVerifiedUser() &&
+          isValidId(orgId) &&
+          isValidId(channelId) &&
+          isValidChannel(incoming()) &&
+          incoming().channelId == channelId &&
+          incoming().orgId == orgId &&
+          incoming().createdBy == request.auth.uid &&
+          incoming().messageCount == 0 &&
+          incoming().status == 'active' &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+          isOrgMember(orgId) &&
+          getAfter(/databases/$(database)/documents/organizations/$(orgId)).data.channelCount == incoming().index;
+        allow update: if isVerifiedUser() &&
+          isValidId(orgId) &&
+          isValidId(channelId) &&
+          isValidChannel(incoming()) &&
+          existing().status != 'archived' &&
+          incoming().channelId == existing().channelId &&
+          incoming().index == existing().index &&
+          incoming().orgId == existing().orgId &&
+          incoming().kind == existing().kind &&
+          incoming().dmParticipantA == existing().dmParticipantA &&
+          incoming().dmParticipantB == existing().dmParticipantB &&
+          incoming().createdBy == existing().createdBy &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            // Action 1: Atomic messageCount increment when a new message is posted
+            (
+              (existing().kind != 'dm' || existing().dmParticipantA == request.auth.uid || existing().dmParticipantB == request.auth.uid) &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['messageCount', 'lastMessagePreview', 'lastMessageAuthorName', 'updatedAt']) &&
+              incoming().messageCount == existing().messageCount + 1 &&
+              get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+              isOrgMember(orgId) &&
+              existsAfter(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)/messages/$( 'msg_' + string(incoming().messageCount) ))
+            ) ||
+            // Action 2: Channel creator or Org Owner updates channel details or archives it
+            (
+              incoming().diff(existing()).affectedKeys().hasOnly(['name', 'topic', 'category', 'status', 'updatedAt']) &&
+              get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+              isOrgMember(orgId) &&
+              (existing().createdBy == request.auth.uid || get(/databases/$(database)/documents/organizations/$(orgId)).data.ownerId == request.auth.uid)
+            )
+          );
+        allow delete: if false;
+
+        // 9. Channel & DM Messages (Sequential msg_1 .. msg_N)
+        match /messages/{messageId} {
+          allow get: if isVerifiedUser() &&
+            isValidId(orgId) &&
+            isValidId(channelId) &&
+            isValidId(messageId) &&
+            get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+            isOrgMember(orgId) &&
+            (
+              get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.kind != 'dm' ||
+              get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.dmParticipantA == request.auth.uid ||
+              get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.dmParticipantB == request.auth.uid
+            );
+          allow list: if false;
+          allow create: if isVerifiedUser() &&
+            isValidId(orgId) &&
+            isValidId(channelId) &&
+            isValidId(messageId) &&
+            isValidMessage(incoming()) &&
+            incoming().messageId == messageId &&
+            incoming().orgId == orgId &&
+            incoming().channelId == channelId &&
+            incoming().authorId == request.auth.uid &&
+            incoming().isPinned == false &&
+            incoming().status == 'sent' &&
+            incoming().createdAt == request.time &&
+            incoming().updatedAt == request.time &&
+            get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+            isOrgMember(orgId) &&
+            get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.status == 'active' &&
+            (
+              get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.kind != 'dm' ||
+              get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.dmParticipantA == request.auth.uid ||
+              get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.dmParticipantB == request.auth.uid
+            ) &&
+            getAfter(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.messageCount == incoming().index;
+          allow update: if isVerifiedUser() &&
+            isValidId(orgId) &&
+            isValidId(channelId) &&
+            isValidId(messageId) &&
+            isValidMessage(incoming()) &&
+            existing().status != 'deleted' &&
+            incoming().messageId == existing().messageId &&
+            incoming().index == existing().index &&
+            incoming().orgId == existing().orgId &&
+            incoming().channelId == existing().channelId &&
+            incoming().authorId == existing().authorId &&
+            incoming().authorName == existing().authorName &&
+            incoming().authorRole == existing().authorRole &&
+            incoming().authorAvatarColor == existing().authorAvatarColor &&
+            incoming().replyToMessageId == existing().replyToMessageId &&
+            incoming().replyToAuthorName == existing().replyToAuthorName &&
+            incoming().replyToPreview == existing().replyToPreview &&
+            incoming().createdAt == existing().createdAt &&
+            incoming().updatedAt == request.time &&
+            (
+              // Action 1: Author edits content or soft-deletes their own message
+              (
+                existing().authorId == request.auth.uid &&
+                incoming().status in ['edited', 'deleted'] &&
+                incoming().diff(existing()).affectedKeys().hasOnly(['content', 'status', 'updatedAt']) &&
+                get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+                isOrgMember(orgId) &&
+                get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.status == 'active'
+              ) ||
+              // Action 2: Authorized channel participant pins or unpins a message
+              (
+                incoming().diff(existing()).affectedKeys().hasOnly(['isPinned', 'updatedAt']) &&
+                get(/databases/$(database)/documents/organizations/$(orgId)).data.status == 'active' &&
+                isOrgMember(orgId) &&
+                get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.status == 'active' &&
+                (
+                  get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.kind != 'dm' ||
+                  get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.dmParticipantA == request.auth.uid ||
+                  get(/databases/$(database)/documents/organizations/$(orgId)/channels/$(channelId)).data.dmParticipantB == request.auth.uid
+                )
+              )
+            );
+          allow delete: if false;
+        }
+      }
+    }
+  }
+}

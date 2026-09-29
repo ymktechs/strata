@@ -1,0 +1,744 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public workspace profile for an authenticated user without PII.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Full display name in the workspace.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "jobTitle": {
+          "type": "string",
+          "description": "Role or title within the organization.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "department": {
+          "type": "string",
+          "description": "Department or team name.",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "statusText": {
+          "type": "string",
+          "description": "Custom status note visible to teammates.",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "presence": {
+          "type": "string",
+          "description": "Current availability indicator.",
+          "enum": ["online", "away", "busy", "offline"]
+        },
+        "avatarColor": {
+          "type": "string",
+          "description": "Curated avatar theme color token.",
+          "enum": ["slate", "indigo", "emerald", "amber", "rose", "cyan"]
+        },
+        "activeOrgId": {
+          "type": "string",
+          "description": "Currently selected organization ID or 'none'.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of account creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last profile update."
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "jobTitle",
+        "department",
+        "statusText",
+        "presence",
+        "avatarColor",
+        "activeOrgId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserPrivate": {
+      "title": "UserPrivate",
+      "description": "Strictly owner-isolated PII record containing user email.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified user email address.",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of record creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update."
+        }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "Organization": {
+      "title": "Organization",
+      "description": "Top-level organization workspace metadata and atomic counters.",
+      "type": "object",
+      "properties": {
+        "orgId": {
+          "type": "string",
+          "description": "Unique identifier for the organization.",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the organization.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL-safe workspace handle.",
+          "minLength": 2,
+          "maxLength": 60,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Mission or summary of the organization workspace.",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "industry": {
+          "type": "string",
+          "description": "Sector or domain of the organization.",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "inviteCode": {
+          "type": "string",
+          "description": "Shareable access code for colleagues to join the organization.",
+          "minLength": 4,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the organization creator/owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "memberCount": {
+          "type": "integer",
+          "description": "Total number of sequential member directory records."
+        },
+        "channelCount": {
+          "type": "integer",
+          "description": "Total number of sequential channels in this organization."
+        },
+        "status": {
+          "type": "string",
+          "description": "Lifecycle status of the organization.",
+          "enum": ["active", "archived"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of organization creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last organization update."
+        }
+      },
+      "required": [
+        "orgId",
+        "name",
+        "slug",
+        "description",
+        "industry",
+        "inviteCode",
+        "ownerId",
+        "memberCount",
+        "channelCount",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "OrgInvite": {
+      "title": "OrgInvite",
+      "description": "Deterministic lookup document mapping an invite code to an organization.",
+      "type": "object",
+      "properties": {
+        "inviteCode": {
+          "type": "string",
+          "description": "Shareable invite code key.",
+          "minLength": 4,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "orgId": {
+          "type": "string",
+          "description": "Target organization ID.",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "orgName": {
+          "type": "string",
+          "description": "Target organization name.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "orgSlug": {
+          "type": "string",
+          "description": "Target organization slug.",
+          "minLength": 2,
+          "maxLength": 60,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the organization owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of update."
+        }
+      },
+      "required": [
+        "inviteCode",
+        "orgId",
+        "orgName",
+        "orgSlug",
+        "ownerId",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserMembership": {
+      "title": "UserMembership",
+      "description": "User-scoped organization membership record queryable by userId.",
+      "type": "object",
+      "properties": {
+        "membershipId": {
+          "type": "string",
+          "description": "Composite ID of userId and orgId.",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the member.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "orgId": {
+          "type": "string",
+          "description": "Joined organization ID.",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "orgName": {
+          "type": "string",
+          "description": "Organization display name.",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "orgSlug": {
+          "type": "string",
+          "description": "Organization slug.",
+          "minLength": 2,
+          "maxLength": 60,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "inviteCode": {
+          "type": "string",
+          "description": "Organization invite code.",
+          "minLength": 4,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user in the organization.",
+          "enum": ["owner", "admin", "member"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when membership was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last membership update."
+        }
+      },
+      "required": [
+        "membershipId",
+        "userId",
+        "orgId",
+        "orgName",
+        "orgSlug",
+        "inviteCode",
+        "role",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "OrgMember": {
+      "title": "OrgMember",
+      "description": "Master Gate membership record and live profile inside an organization.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of the organization member.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "orgId": {
+          "type": "string",
+          "description": "Parent organization ID.",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "slotId": {
+          "type": "string",
+          "description": "Corresponding directory slot ID (e.g. mem_1).",
+          "minLength": 3,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Member display name.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "jobTitle": {
+          "type": "string",
+          "description": "Member job title.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "department": {
+          "type": "string",
+          "description": "Member department.",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "statusText": {
+          "type": "string",
+          "description": "Member custom status text.",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "presence": {
+          "type": "string",
+          "description": "Member live availability.",
+          "enum": ["online", "away", "busy", "offline"]
+        },
+        "avatarColor": {
+          "type": "string",
+          "description": "Avatar color token.",
+          "enum": ["slate", "indigo", "emerald", "amber", "rose", "cyan"]
+        },
+        "role": {
+          "type": "string",
+          "description": "Member role within the organization.",
+          "enum": ["owner", "admin", "member"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp joined."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp last updated."
+        }
+      },
+      "required": [
+        "userId",
+        "orgId",
+        "slotId",
+        "displayName",
+        "jobTitle",
+        "department",
+        "statusText",
+        "presence",
+        "avatarColor",
+        "role",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "OrgMemberDirectoryEntry": {
+      "title": "OrgMemberDirectoryEntry",
+      "description": "Sequential index slot pointing to an organization member UID.",
+      "type": "object",
+      "properties": {
+        "slotId": {
+          "type": "string",
+          "description": "Sequential slot identifier (e.g. mem_1).",
+          "minLength": 3,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "index": {
+          "type": "integer",
+          "description": "1-based sequential index matching memberCount."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Referenced member UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "orgId": {
+          "type": "string",
+          "description": "Parent organization ID.",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of update."
+        }
+      },
+      "required": ["slotId", "index", "userId", "orgId", "createdAt", "updatedAt"]
+    },
+    "Channel": {
+      "title": "Channel",
+      "description": "Organization communication channel or direct message thread.",
+      "type": "object",
+      "properties": {
+        "channelId": {
+          "type": "string",
+          "description": "Sequential channel identifier (e.g. ch_1).",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "index": {
+          "type": "integer",
+          "description": "1-based sequential channel index."
+        },
+        "orgId": {
+          "type": "string",
+          "description": "Parent organization ID.",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Channel handle or DM title.",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "topic": {
+          "type": "string",
+          "description": "Channel purpose and discussion guidelines.",
+          "minLength": 0,
+          "maxLength": 160
+        },
+        "category": {
+          "type": "string",
+          "description": "Organizational grouping for the channel.",
+          "enum": ["announcements", "general", "engineering", "product", "operations", "direct"]
+        },
+        "kind": {
+          "type": "string",
+          "description": "Access and behavior type of the channel.",
+          "enum": ["public", "announcement", "dm"]
+        },
+        "dmParticipantA": {
+          "type": "string",
+          "description": "First participant UID for DM channels, or 'none'.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "dmParticipantB": {
+          "type": "string",
+          "description": "Second participant UID for DM channels, or 'none'.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "UID of the member who created the channel.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "messageCount": {
+          "type": "integer",
+          "description": "Total number of sequential messages in this channel."
+        },
+        "lastMessagePreview": {
+          "type": "string",
+          "description": "Snippet of the latest message for sidebar display.",
+          "minLength": 0,
+          "maxLength": 160
+        },
+        "lastMessageAuthorName": {
+          "type": "string",
+          "description": "Author name of the latest message.",
+          "minLength": 0,
+          "maxLength": 80
+        },
+        "status": {
+          "type": "string",
+          "description": "Lifecycle state of the channel.",
+          "enum": ["active", "archived"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of channel creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last channel activity."
+        }
+      },
+      "required": [
+        "channelId",
+        "index",
+        "orgId",
+        "name",
+        "topic",
+        "category",
+        "kind",
+        "dmParticipantA",
+        "dmParticipantB",
+        "createdBy",
+        "messageCount",
+        "lastMessagePreview",
+        "lastMessageAuthorName",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual chat message inside an organization channel or DM.",
+      "type": "object",
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "description": "Sequential message identifier (e.g. msg_1).",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "index": {
+          "type": "integer",
+          "description": "1-based sequential message number in the channel."
+        },
+        "orgId": {
+          "type": "string",
+          "description": "Parent organization ID.",
+          "minLength": 3,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "channelId": {
+          "type": "string",
+          "description": "Parent channel ID.",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "description": "UID of the message author.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "description": "Display name of the message author.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "authorRole": {
+          "type": "string",
+          "description": "Job title or role of the author.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "authorAvatarColor": {
+          "type": "string",
+          "description": "Avatar color token of the author.",
+          "enum": ["slate", "indigo", "emerald", "amber", "rose", "cyan"]
+        },
+        "content": {
+          "type": "string",
+          "description": "Body text of the chat message.",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "replyToMessageId": {
+          "type": "string",
+          "description": "ID of parent message being replied to, or 'none'.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "replyToAuthorName": {
+          "type": "string",
+          "description": "Author name of the quoted message, or empty string.",
+          "minLength": 0,
+          "maxLength": 80
+        },
+        "replyToPreview": {
+          "type": "string",
+          "description": "Short excerpt of the quoted message, or empty string.",
+          "minLength": 0,
+          "maxLength": 140
+        },
+        "isPinned": {
+          "type": "boolean",
+          "description": "Whether the message is pinned to the channel header."
+        },
+        "status": {
+          "type": "string",
+          "description": "Message lifecycle status.",
+          "enum": ["sent", "edited", "deleted"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when message was sent."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when message was last modified."
+        }
+      },
+      "required": [
+        "messageId",
+        "index",
+        "orgId",
+        "channelId",
+        "authorId",
+        "authorName",
+        "authorRole",
+        "authorAvatarColor",
+        "content",
+        "replyToMessageId",
+        "replyToAuthorName",
+        "replyToPreview",
+        "isPinned",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Owner-isolated public workspace profile document."
+    },
+    "/user_private/{userId}": {
+      "schema": { "$ref": "#/entities/UserPrivate" },
+      "description": "Strictly owner-only PII document storing verified email."
+    },
+    "/organizations/{orgId}": {
+      "schema": { "$ref": "#/entities/Organization" },
+      "description": "Top-level organization workspace document."
+    },
+    "/org_invites/{inviteCode}": {
+      "schema": { "$ref": "#/entities/OrgInvite" },
+      "description": "Deterministic invite code lookup mapping to an organization."
+    },
+    "/user_memberships/{membershipId}": {
+      "schema": { "$ref": "#/entities/UserMembership" },
+      "description": "User-owned membership index enabling secure per-user organization list queries."
+    },
+    "/organizations/{orgId}/members/{userId}": {
+      "schema": { "$ref": "#/entities/OrgMember" },
+      "description": "Master Gate membership authority and live member profile inside an organization."
+    },
+    "/organizations/{orgId}/member_directory/{slotId}": {
+      "schema": { "$ref": "#/entities/OrgMemberDirectoryEntry" },
+      "description": "Sequential member directory slot mapping 1..memberCount to userId."
+    },
+    "/organizations/{orgId}/channels/{channelId}": {
+      "schema": { "$ref": "#/entities/Channel" },
+      "description": "Sequential organization channels and direct message threads."
+    },
+    "/organizations/{orgId}/channels/{channelId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Sequential messages within a channel or direct message thread."
+    }
+  }
+}
